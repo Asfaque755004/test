@@ -2,7 +2,7 @@
 
 ![Toolbar Screenshot](# 🔌 New Session Button — Complete End-to-End Flow
 
-![Toolbar Screenshot]([https://github.com/Asfaque755004/test/issues/1#issue-3920699141](https://private-user-images.githubusercontent.com/147075032/547637598-f1d97062-46f6-4338-a3f1-354eeeb489be.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzA3MjAzNjEsIm5iZiI6MTc3MDcyMDA2MSwicGF0aCI6Ii8xNDcwNzUwMzIvNTQ3NjM3NTk4LWYxZDk3MDYyLTQ2ZjYtNDMzOC1hM2YxLTM1NGVlZWI0ODliZS5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMjEwJTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDIxMFQxMDQxMDFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT0wYmFjNDY0YTViMDdkNWUzMWUzOWUzNmEyNDIzMzU2ODIwYTc4ZDEwNmNlZjBjNzQ1ZWVlMmNhMzY5MTQ5YjgwJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.F0yQBQqQvnjmgLWz9jyi0VJ-oTHnJ3_E3k2vcxyCb-4)
+![Toolbar Screenshot](https://private-user-images.githubusercontent.com/147075032/547637598-f1d97062-46f6-4338-a3f1-354eeeb489be.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzA3MjAzNjEsIm5iZiI6MTc3MDcyMDA2MSwicGF0aCI6Ii8xNDcwNzUwMzIvNTQ3NjM3NTk4LWYxZDk3MDYyLTQ2ZjYtNDMzOC1hM2YxLTM1NGVlZWI0ODliZS5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMjEwJTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDIxMFQxMDQxMDFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT0wYmFjNDY0YTViMDdkNWUzMWUzOWUzNmEyNDIzMzU2ODIwYTc4ZDEwNmNlZjBjNzQ1ZWVlMmNhMzY5MTQ5YjgwJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.F0yQBQqQvnjmgLWz9jyi0VJ-oTHnJ3_E3k2vcxyCb-4)
 
 This traces **every method call, listener notification, and button state change** from the moment the user clicks "🔌 New Session" on the toolbar until the new tab is fully displayed and active.
 
@@ -566,6 +566,7 @@ flowchart TD
 | `SessionTabBar` | [SessionTabBar.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/SessionTabBar.java) | Manages tab strip — adds/removes/highlights tabs |
 | `SessionWorkspace` | [SessionWorkspace.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/SessionWorkspace.java) | Per-session UI: editor + results + dump pane |
 | `DqlSathiApplication` | [DqlSathiApplication.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/DqlSathiApplication.java) | Orchestrator — wires everything, creates/removes workspaces |
+
 
 
 
