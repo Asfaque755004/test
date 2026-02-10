@@ -1,208 +1,405 @@
-# Stop Button — Enterprise-Grade Implementation Analysis
+# DQLSathi UI Architecture Analysis
 
-## The Problem
+## Executive Summary
 
-The stop button is currently **dead code** — hardcoded to `disabled` with an empty `handleStop()` method. There is zero cancellation infrastructure in the entire query execution pipeline.
+This analysis provides a strategic UI architecture plan for DQLSathi to evolve from a simple query tool into an enterprise-grade Documentum platform comparable to DQMan and DQLBuddy. The goal is to design a flexible, extensible UI foundation that can accommodate:
 
-```java
-// Current state in MainToolbar.java
-stopButton.setDisable(true); // Hardcoded — never changes
-private void handleStop() {
-    // TODO: Cancel running query
-    logger.debug("Stop requested");
-}
-```
+- **Multiple simultaneous repository connections**
+- **Modular feature expansion** (DQL, API, Scripts, Jobs, Object Browser)
+- **Future integration** with SiteAnalyser and other tools
 
 ---
 
-## Deep Analysis: Current Query Execution Flow
+## Current State Analysis
+
+### Existing Architecture
+
+````carousel
+| Component | Purpose | Lines of Code |
+|-----------|---------|---------------|
+| `DqlSathiApplication.java` | Main app, layout, wiring | ~340 |
+| `ConnectionPanel.java` | Login form with history | ~580 |
+| `QueryEditorPanel.java` | DQL editor with syntax highlighting | ~627 |
+| `ResultsPanel.java` | Results table with filtering | ~1547 |
+| `DumpTabPane.java` | Result tabs + dump tabs | ~147 |
+| `DumpPanel.java` | Object attribute viewer | ~200 |
+<!-- slide -->
+### Current UI Layout
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ MenuBar (Help only)                                        │
+├────────────────────────────────────────────────────────────┤
+│ ConnectionPanel (Username, Password, Repository, Buttons) │
+├────────────────────────────────────────────────────────────┤
+│ QueryEditorPanel (Code Editor + Execute/Clear)             │
+├────────────────────────────────────────────────────────────┤
+│ DumpTabPane                                                │
+│   ├─ Results Tab (ResultsPanel)                           │
+│   └─ Dump: [objectId] Tab(s) (DumpPanel)                  │
+└────────────────────────────────────────────────────────────┘
+```
+<!-- slide -->
+### Strengths
+- ✅ Clean separation of concerns (panels are modular)
+- ✅ Login history already implemented
+- ✅ DumpTabPane already supports dynamic tabs
+- ✅ Modern JavaFX with syntax highlighting
+- ✅ CSS-based styling in place
+
+### Limitations
+- ❌ Single connection only - no multi-repository support
+- ❌ No icon toolbar - everything is text-based
+- ❌ No repository navigator sidebar
+- ❌ Menu bar is minimal (Help only)
+- ❌ No session management for multiple connections
+- ❌ Tight coupling in `DqlSathiApplication` for panel wiring
+````
+
+---
+
+## DQMan Reference Analysis
+
+### DQMan UI Structure (from screenshots)
+
+![DQMan Login Screen](file:///C:/Users/SAJAN/.gemini/antigravity/brain/411a73b3-4408-44f8-94a9-06e50024194c/uploaded_media_0_1770437684081.png)
+
+![DQMan Connected State](file:///C:/Users/SAJAN/.gemini/antigravity/brain/411a73b3-4408-44f8-94a9-06e50024194c/uploaded_media_1_1770437684081.png)
+
+### Three-Tier Menu Structure
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ROW 1: Global Text Menu                                                  │
+│ Session │ Jobs │ Edit │ View │ Functions │ Favorites │ Extras │ Windows │ Help │
+├──────────────────────────────────────────────────────────────────────────┤
+│ ROW 2: Icon Toolbar                                                      │
+│ 🔌Session │ 📋Jobs │ 📄Copy │ ❌Disconnect │ 📝DQL │ 🔧API │ ... │ ▶Run │ ⏸Pause │ ⏹Stop │
+├──────────────────────────────────────────────────────────────────────────┤
+│ ROW 3: Connection Tabs (Dynamic)                                         │
+│ [🔌 user@REPO1 ✕] │ [🔌 user@REPO2 ✕] │ [⚠ <not connected> ✕] │ ...    │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key DQMan Features to Adopt
+
+| Feature | DQMan Implementation | Priority for DQLSathi |
+|---------|---------------------|----------------------|
+| **Multi-Connection Tabs** | 3rd row tabs, each with own session | 🔴 Critical |
+| **Session Dropdown** | Click Session icon → history list | 🔴 Critical |
+| **Icon Toolbar** | Visual shortcuts for common actions | 🟠 High |
+| **Repository Navigator** | Tree view: Folders/Types/Groups/Users | 🟠 High |
+| **DQL/API/Script Modes** | Different execution modes per tab | 🟡 Medium |
+| **History Panel** | Browse and re-execute past queries | 🟡 Medium |
+| **Favorites** | Save frequently used queries | 🟢 Nice to have |
+
+---
+
+## Proposed UI Architecture
+
+### Target Layout
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ROW 1: Global Menu Bar                                                   │
+│ [Session] [Edit] [View] [Query] [Tools] [Windows] [Help]                │
+├──────────────────────────────────────────────────────────────────────────┤
+│ ROW 2: Main Toolbar (Icons + Labels)                                     │
+│ [🔌New] [📋Jobs] [📄Copy] [❌Disconnect] ║ [📝DQL] [🔧API] [📜Script] ║ [▶Run] [⏹Stop] ║ [📜History] [⭐Fav] │
+├──────────────────────────────────────────────────────────────────────────┤
+│ ROW 3: Session Tab Bar                                                   │
+│ [🔌 admin@EDMS ✕] [⚠ <not connected>] [➕]                              │
+├───────────────────────┬──────────────────────────────────────────────────┤
+│ Repository Navigator  │ Active Session Workspace                        │
+│ ┌─────────────────┐  │ ┌──────────────────────────────────────────────┐ │
+│ │ 📁 Folders      │  │ │ Query Editor (with mode indicator)           │ │
+│ │ 📋 Types        │  │ ├──────────────────────────────────────────────┤ │
+│ │ 👥 Groups       │  │ │ [Results] [Dump: 09...] [Dump: 08...]       │ │
+│ │ 👤 Users        │  │ │ ┌──────────────────────────────────────────┐ │ │
+│ └─────────────────┘  │ │ │ Results Table / Dump Panel               │ │ │
+│ [Filter: 🔍______]   │ │ └──────────────────────────────────────────┘ │ │
+│                      │ └──────────────────────────────────────────────┘ │
+├───────────────────────┴──────────────────────────────────────────────────┤
+│ Status Bar: [Connection Status] [Row Count] [Execution Time]            │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Component Hierarchy
 
 ```mermaid
-sequenceDiagram
-    participant User
-    participant MainToolbar
-    participant SessionWorkspace
-    participant QueryEditorPanel
-    participant Task as JavaFX Task (Background Thread)
-    participant QueryExecutor
-    participant DFC as Documentum DFC Server
-
-    User->>MainToolbar: Click Run ▶
-    MainToolbar->>SessionWorkspace: triggerExecute()
-    SessionWorkspace->>QueryEditorPanel: execute()
-    QueryEditorPanel->>SessionWorkspace: executeListener.onExecute(query)
-    SessionWorkspace->>Task: new Thread(task).start()
-    Task->>QueryExecutor: executeQuery(query) [BLOCKING]
-    QueryExecutor->>DFC: query.execute(session, DF_READ_QUERY)
-    Note over QueryExecutor,DFC: ⚠️ This blocks until the server<br/>returns ALL results or fails.<br/>No way to cancel mid-flight!
-    DFC-->>QueryExecutor: IDfCollection
-    QueryExecutor-->>Task: QueryResult
-    Task-->>SessionWorkspace: onSucceeded / onFailed
+graph TD
+    A[DqlSathiApplication] --> B[MainMenuBar]
+    A --> C[MainToolbar]
+    A --> D[SessionTabBar]
+    A --> E[MainSplitPane]
+    
+    E --> F[RepositoryNavigator]
+    E --> G[SessionWorkspace]
+    
+    G --> H[QueryEditorPanel]
+    G --> I[DumpTabPane]
+    
+    D --> J[SessionTab 1]
+    D --> K[SessionTab 2]
+    D --> L[+ New Session]
+    
+    J --> M[SessionContext]
+    M --> N[DfcSession]
+    M --> O[MetadataCache]
+    M --> P[QueryHistory]
 ```
-
-### Key Findings
-
-| Layer | File | Problem |
-|-------|------|---------|
-| **UI** | `MainToolbar.java` | Stop button always disabled, `handleStop()` is empty |
-| **Orchestrator** | `SessionWorkspace.java` | `Task` reference is local — lost after method exits, no way to cancel |
-| **Executor** | `QueryExecutor.java` | Synchronous, no `volatile` cancel flag, no `Thread.interrupt()` support |
-| **DFC** | `DfcService.java` | No session-level cancel. DFC's `IDfCollection.close()` can force-terminate iteration |
 
 ---
 
-## The Enterprise Approach: What Needs to Change
+## Implementation Strategy
 
-### Architecture: Event-Driven Query Lifecycle
+### Phase 1: Core Session Architecture (Foundation)
 
-The core idea is a **Query Lifecycle State Machine** that drives all UI state changes:
+> [!IMPORTANT]
+> This is the **critical foundation** that must be built first. All other features depend on proper session isolation.
+
+#### New Components
+
+| Component | Responsibility |
+|-----------|---------------|
+| `SessionContext` | Holds session state: connection, cache, history, results |
+| `SessionTabBar` | Manages session tabs (add, close, switch) |
+| `SessionWorkspace` | Container for per-session UI (editor + results) |
+| `SessionManager` | Singleton coordinating all sessions |
+
+#### Refactoring Required
+
+1. **Decouple `DfcService`** from singleton → per-session instances
+2. **Move connection logic** from `ConnectionPanel` → modal `LoginDialog`
+3. **Isolate state** per session (query history, results, metadata cache)
+
+---
+
+### Phase 2: Main Toolbar (Visual Shortcuts)
+
+```java
+// Proposed toolbar structure
+MainToolbar
+├── SessionGroup: [New Session ▼] [Disconnect]
+├── Separator
+├── ModeGroup: [DQL] [API] [DQL Script] [API Script]
+├── Separator  
+├── ExecutionGroup: [Run ▶] [Step] [Pause ‖] [Stop ■]
+├── Separator
+└── HistoryGroup: [History] [Favorites] [Navigator]
+```
+
+---
+
+### Phase 3: Repository Navigator (Sidebar)
+
+```java
+RepositoryNavigator extends TreeView<NavigatorNode>
+├── Folders (dm_folder hierarchy)
+├── Types (dm_type, expandable to subtypes)
+├── Groups (dm_group list)
+├── Users (dm_user list)
+└── Registered Tables
+```
+
+**Key behaviors:**
+- Double-click Type → insert `select * from type_name` in editor
+- Drag folder → insert folder path
+- Context menu → view properties, create query template
+
+---
+
+### Phase 4: Enhanced Menu Bar
+
+```
+Session Menu:
+  - New Connection... (Ctrl+N)
+  - Connect (from history submenu)
+  - Disconnect (Ctrl+D)
+  - Close Tab (Ctrl+W)
+  - Exit
+
+Edit Menu:
+  - Undo/Redo
+  - Cut/Copy/Paste
+  - Find/Replace (Ctrl+F)
+  - Format Query
+
+Query Menu:
+  - Execute (F5)
+  - Execute Selected (Ctrl+Enter)
+  - Explain Plan
+  - Cancel Query (Esc)
+
+View Menu:
+  - Toggle Navigator (Ctrl+1)
+  - Toggle History (Ctrl+2)
+  - Zoom In/Out
+  - Reset Layout
+
+Tools Menu:
+  - Object Dump (Alt+D)
+  - DQL Script Runner
+  - API Script Runner
+  - Batch Export
+  
+Windows Menu:
+  - [List of open session tabs]
+  
+Help Menu:
+  - Documentation
+  - Open Logs Folder
+  - About
+```
+
+---
+
+## Data Flow Architecture
+
+### Per-Session State Isolation
 
 ```mermaid
 stateDiagram-v2
-    [*] --> IDLE
-    IDLE --> EXECUTING : User clicks Run
-    EXECUTING --> COMPLETED : Query succeeds
-    EXECUTING --> FAILED : Query errors
-    EXECUTING --> CANCELLING : User clicks Stop
-    CANCELLING --> CANCELLED : Cancellation confirmed
-    COMPLETED --> IDLE : Reset
-    FAILED --> IDLE : Reset
-    CANCELLED --> IDLE : Reset
+    [*] --> NewSessionTab: Click + or Session Menu
+    NewSessionTab --> LoginDialog: Show modal
+    LoginDialog --> SessionContext: Create on successful login
+    SessionContext --> SessionWorkspace: Bind UI components
+    SessionWorkspace --> QueryEditor: Isolated editor
+    SessionWorkspace --> ResultsPane: Isolated results
+    SessionContext --> MetadataCache: Cache per session
+    SessionContext --> QueryHistory: History per session
+    SessionContext --> DfcSession: DFC session per tab
 ```
 
-Every state transition triggers **button state updates** automatically via a listener/callback pattern.
+### Event Flow
 
-### Feature Set
-
-| Feature | Description |
-|---------|-------------|
-| **🔴 Query Cancellation** | Interrupt the running query via `Task.cancel()` + `Thread.interrupt()` + DFC collection close |
-| **🔄 Button State Machine** | Stop button reactively enables/disables based on query lifecycle state |
-| **📊 Status Bar Feedback** | Real-time status: "Executing...", "Cancelling...", "Cancelled", "Completed" |
-| **⏱️ Elapsed Timer** | Show live elapsed time during execution (e.g., "Executing... 3.2s") |
-| **🔒 Thread Safety** | `volatile` flags + `AtomicReference` for safe cross-thread cancellation |
-| **🛡️ DFC Resource Cleanup** | Guaranteed session/collection cleanup on cancel via `finally` blocks |
-| **📝 Keyboard Shortcut** | `Ctrl+Break` or `Escape` to cancel from keyboard |
-| **🎯 Per-Session Isolation** | Each session tracks its own running task independently |
-| **🚫 Prevent Double-Submit** | Run button disables during execution — prevents duplicate queries |
+```java
+// User executes query in Session Tab 2
+SessionTabBar.activeSession = session2;
+session2.workspace.queryEditor.execute()
+    → session2.context.dfcSession.executeQuery(dql)
+    → session2.workspace.resultsPanel.displayResults()
+    → session2.context.queryHistory.addEntry(dql)
+```
 
 ---
 
-## Proposed Changes
+## File Structure Proposal
 
-### Component 1: Query Lifecycle Model
-
-#### [NEW] [QueryExecutionState.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/model/QueryExecutionState.java)
-
-Enum defining the lifecycle states: `IDLE`, `EXECUTING`, `CANCELLING`, `COMPLETED`, `FAILED`, `CANCELLED`.
-
----
-
-### Component 2: Cancellable Query Executor
-
-#### [MODIFY] [QueryExecutor.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/service/QueryExecutor.java)
-
-- Add `volatile boolean cancelled` flag
-- Add `requestCancel()` method that sets flag + closes active `IDfCollection`
-- Check `cancelled` flag inside the `parseResults()` row-iteration loop
-- Store `IDfCollection` reference as instance field for external cancellation
-- Ensure `finally` block always releases session + closes collection
-
----
-
-### Component 3: Session Workspace — Task Lifecycle Owner
-
-#### [MODIFY] [SessionWorkspace.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/SessionWorkspace.java)
-
-- Store `Task<QueryResult>` as instance field `currentTask`
-- Store `QueryExecutor` as instance field `currentExecutor`
-- Add `cancelQuery()` public method:
-  1. Call `currentExecutor.requestCancel()`
-  2. Call `currentTask.cancel(true)` — sends `Thread.interrupt()`
-- Add `QueryExecutionState` tracking with listener callback
-- Fire state change events: `IDLE → EXECUTING → COMPLETED/FAILED/CANCELLED`
-- Add `setOnQueryStateChanged(Consumer<QueryExecutionState> listener)` callback
-- Disable Run button (`EXECUTING` state) to prevent double-submit
+```
+src/main/java/com/dqlsathi/
+├── DqlSathiApplication.java          # Slimmed down, just bootstrapping
+├── config/
+├── export/
+├── filter/
+├── highlight/
+├── model/
+│   ├── SessionContext.java           # NEW: Per-session state container
+│   ├── NavigatorNode.java            # NEW: Tree node for navigator
+│   └── ...existing models...
+├── service/
+│   ├── SessionManager.java           # NEW: Coordinates multiple sessions
+│   └── ...existing services...
+├── ui/
+│   ├── MainMenuBar.java              # NEW: Enhanced menu bar
+│   ├── MainToolbar.java              # NEW: Icon toolbar
+│   ├── SessionTabBar.java            # NEW: Connection tabs
+│   ├── SessionWorkspace.java         # NEW: Per-session container
+│   ├── LoginDialog.java              # NEW: Modal login (refactored from ConnectionPanel)
+│   ├── RepositoryNavigator.java      # NEW: Tree sidebar
+│   ├── QueryEditorPanel.java         # EXISTING: Minor updates
+│   ├── ResultsPanel.java             # EXISTING: Minor updates
+│   ├── DumpTabPane.java              # EXISTING: Minor updates
+│   └── ...
+└── util/
+```
 
 ---
 
-### Component 4: Toolbar Integration
+## Migration Path
 
-#### [MODIFY] [MainToolbar.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/MainToolbar.java)
+### Backward Compatibility
 
-- Subscribe to active session's `QueryExecutionState` changes
-- `updateButtonStates()` now also manages stop button:
-  - `IDLE` → Stop **disabled**, Run **enabled**
-  - `EXECUTING` → Stop **enabled**, Run **disabled**
-  - `CANCELLING/CANCELLED/COMPLETED/FAILED` → Stop **disabled**, Run **enabled**
-- `handleStop()` calls `activeWorkspace.cancelQuery()`
-- Cleanup: unsubscribe from old session's listener when switching sessions
+The transition should be **non-breaking**:
 
----
+1. **Phase 1**: Add new session infrastructure alongside existing code
+2. **Phase 2**: Keep single-session mode as default, multi-session as opt-in
+3. **Phase 3**: Once stable, make multi-session the default
 
-### Component 5: Status Bar Enhancement
+### Incremental Delivery
 
-#### [MODIFY] [QueryEditorPanel.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/QueryEditorPanel.java)
-
-- Update `setQueryStatus()` to show state-aware messages:
-  - `EXECUTING` → "⏳ Executing query..."
-  - `CANCELLING` → "🛑 Cancelling..."
-  - `CANCELLED` → "⚠️ Query cancelled by user"
-  - `COMPLETED` → "✅ Query executed — N rows in X.Xs"
+| Sprint | Deliverable | Risk |
+|--------|-------------|------|
+| 1 | Session architecture (SessionContext, SessionManager) | Low |
+| 2 | SessionTabBar + LoginDialog modal | Low |
+| 3 | Toolbar with basic actions | Low |
+| 4 | Repository Navigator (Types only) | Medium |
+| 5 | Full Navigator + History panel | Medium |
+| 6 | Script execution modes | Medium |
+| 7 | SiteAnalyser integration hooks | High |
 
 ---
 
-## Button State Matrix (Complete)
+## Design Decisions & Trade-offs
 
-| State | Run ▶ | Stop ⏹ | Clear 🗑 | Disconnect | History |
-|-------|-------|--------|----------|------------|---------|
-| No session | ❌ | ❌ | per-text | ❌ | ❌ |
-| Connected, IDLE | per-text | ❌ | per-text | ✅ | ✅ |
-| Connected, EXECUTING | ❌ | ✅ | per-text | ❌ | ✅ |
-| Connected, CANCELLING | ❌ | ❌ | per-text | ❌ | ✅ |
+### Decision 1: Modal Login vs Inline Panel
 
-> `per-text` = enabled only if editor has text content
+**Chosen: Modal Dialog (like DQMan)**
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Modal Dialog** | Cleaner main UI, less clutter, standard UX | Extra click to access |
+| Current Inline Panel | Always visible, quick access | Takes permanent screen space |
+
+### Decision 2: Session Tab Architecture
+
+**Chosen: New Tab = New Session (like DQMan)**
+
+Each session tab gets:
+- Own DFC session
+- Own metadata cache
+- Own query history
+- Own results/dump tabs
+
+**Alternative rejected**: Shared session with multiple query tabs (less intuitive)
+
+### Decision 3: Navigator Position
+
+**Chosen: Left sidebar, collapsible**
+
+- Left aligns with file browser conventions (Explorer, VS Code)
+- Collapsible saves space for query editing
+- Toggle via View menu or Ctrl+1
 
 ---
 
-## DFC Cancellation Strategy
+## Questions for User Clarification
 
-> [!IMPORTANT]
-> DFC (Documentum Foundation Classes) does NOT support `IDfQuery.cancel()`. The server-side query runs to completion. What we CAN do is **stop reading results client-side**.
+Before proceeding with implementation, please confirm:
 
-**Three-layer cancellation:**
+1. **Priority**: Should we implement **multi-connection tabs first** (core session work) or would you prefer **toolbar/menu enhancements first** (more visible but less foundational)?
 
-1. **`Task.cancel(true)`** — sends `Thread.interrupt()` to the background thread
-2. **`volatile cancelled` flag** — checked in the row-iteration loop in `parseResults()`
-3. **`IDfCollection.close()`** — force-closes the result cursor, stops network reads
+2. **Repository Navigator scope**: Which items are essential for V1?
+   - [ ] Folders (dm_folder tree)
+   - [ ] Types (dm_type, including custom types)
+   - [ ] Groups (dm_group)
+   - [ ] Users (dm_user)
+   - [ ] Registered Tables
 
-This means:
-- For fast queries (< 1s): Cancel may arrive after completion — harmless
-- For large result sets: Cancel stops iteration — returns partial results or cancellation error
-- For slow server queries: The server still runs, but the client thread is freed immediately
+3. **Script execution**: Do you need **DQL Script** (batch execution) and **API Script** modes soon, or can these wait for a later phase?
+
+4. **SiteAnalyser integration**: Any specific hooks or data exchange patterns we should design for now?
+
+5. **Would you like to share DQLBuddy screenshots** for additional reference, or is DQMan sufficient as the primary reference?
 
 ---
 
-## Verification Plan
+## Next Steps (Pending Approval)
 
-### Manual Verification
+If this analysis is approved, I will create a detailed `implementation_plan.md` for **Phase 1: Session Architecture** including:
 
-Since this is a JavaFX UI application with DFC dependencies (requires a live Documentum repository), verification is manual:
+- Exact file changes
+- New class designs with method signatures
+- CSS updates for new components
+- Testing strategy
 
-1. **Start application** → Verify stop button is **disabled** by default
-2. **Connect to repository** → Verify stop button remains **disabled** (no query running)
-3. **Execute a fast query** (e.g., `select r_object_id from dm_cabinet`) → Verify:
-   - Stop button briefly enables during execution
-   - Stop button disables after results appear
-   - Run button disables during execution, re-enables after
-4. **Execute a slow/large query** (e.g., `select * from dm_sysobject`) → Click Stop:
-   - Verify stop button enables when query starts
-   - Verify clicking Stop shows "Cancelling..." in status bar
-   - Verify status bar shows "Query cancelled by user"
-   - Verify stop button disables after cancellation
-   - Verify Run button re-enables after cancellation
-5. **Switch sessions** during execution → Verify button states reflect the active session's state
-6. **Disconnect during execution** → Verify graceful cleanup, no dangling threads
-
-> [!TIP]
-> You can suggest additional manual test scenarios or any queries you typically use for testing long-running operations.
