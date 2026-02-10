@@ -62,7 +62,7 @@ This analysis provides a strategic UI architecture plan for DQLSathi to evolve f
 
 ### DQMan UI Structure (from screenshots)
 
-![DQMan Login Screen](file:///C:/Users/SAJAN/.gemini/antigravity/brain/411a73b3-4408-44f8-94a9-06e50024194c/uploaded_media_0_1770437684081.png)
+![DQMan Login Screen](https://private-user-images.githubusercontent.com/147075032/547735735-8f348ba0-f906-4591-b036-790b7a75d84c.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzA3MzI1NzIsIm5iZiI6MTc3MDczMjI3MiwicGF0aCI6Ii8xNDcwNzUwMzIvNTQ3NzM1NzM1LThmMzQ4YmEwLWY5MDYtNDU5MS1iMDM2LTc5MGI3YTc1ZDg0Yy5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMjEwJTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDIxMFQxNDA0MzJaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT02YWU5NzEwNjMwMjY0ZTc0MDMwM2U1ZWRmYTEzZjEyMmVlMDU4OWFjYTFhNTNlZmQ2NTliYTQ3OGMxNDhmYzNlJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.fuvIJdxk6FRiIlFp8_ooHG0mNqI0_HMlm_FGn_WHTi8))
 
 ![DQMan Connected State](file:///C:/Users/SAJAN/.gemini/antigravity/brain/411a73b3-4408-44f8-94a9-06e50024194c/uploaded_media_1_1770437684081.png)
 
@@ -402,4 +402,5 @@ If this analysis is approved, I will create a detailed `implementation_plan.md` 
 - New class designs with method signatures
 - CSS updates for new components
 - Testing strategy
+
 
