@@ -1,483 +1,312 @@
-# Phase 1 Implementation Plan: Multi-Session Architecture
+# Migration Instructions: Multi-Session Architecture
 
-## Goal
+## Overview
 
-Transform DQLSathi from single-connection to multi-session architecture with:
-- Modal login dialog (frees screen space)
-- Session tabs for multiple simultaneous connections
-- Isolated state per session (DFC, cache, history, results)
-- Modular design for future feature expansion
+This document provides step-by-step instructions to integrate the new multi-session architecture into your existing DQLSathi Eclipse project.
 
 ---
 
-## User Requirements Confirmed
+## File Locations in Artifact Directory
 
-| Requirement | Decision |
-|-------------|----------|
-| Login UI | Modal dialog, opens on first launch |
-| Session isolation | Completely isolated (DFC, cache, history) |
-| Navigator | Collapsible, resizes editor/results when toggled |
-| Priority | Multi-session tabs FIRST |
-| Future modules | Architecture must support easy addition |
+All new files are in: `C:\Users\SAJAN\.gemini\antigravity\brain\411a73b3-4408-44f8-94a9-06e50024194c\src\`
 
----
-
-## Proposed Changes
-
-### New Components
-
----
-
-#### [NEW] [SessionContext.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/model/SessionContext.java)
-
-**Purpose**: Holds all state for one session (one repository connection).
-
-```java
-public class SessionContext {
-    private final String sessionId;           // Unique identifier
-    private final String connectionName;      // Display name: user@repository
-    private DfcSession dfcSession;            // Isolated DFC connection
-    private MetadataCache metadataCache;      // Isolated cache
-    private List<String> queryHistory;        // Per-session history
-    private SessionWorkspace workspace;       // UI container
-    
-    // Connection state
-    public boolean isConnected();
-    public void connect(String docbase, String user, String password);
-    public void disconnect();
-    
-    // History
-    public void addToHistory(String query);
-    public List<String> getHistory();
-}
+```
+src/
+├── main/
+│   ├── java/
+│   │   └── com/
+│   │       └── dqlsathi/
+│   │           ├── DqlSathiApplication.java  [REPLACE EXISTING]
+│   │           ├── model/
+│   │           │   ├── SessionContext.java   [NEW]
+│   │           │   └── LoginResult.java      [NEW]
+│   │           ├── service/
+│   │           │   └── SessionManager.java   [NEW]
+│   │           └── ui/
+│   │               ├── LoginDialog.java      [NEW]
+│   │               ├── SessionTabBar.java    [NEW]
+│   │               ├── SessionWorkspace.java [NEW]
+│   │               ├── MainToolbar.java      [NEW]
+│   │               ├── MainMenuBar.java      [NEW]
+│   │               └── EmptyWorkspaceView.java [NEW]
+│   └── resources/
+│       └── css/
+│           └── session-ui.css                [NEW]
 ```
 
 ---
 
-#### [NEW] [SessionManager.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/service/SessionManager.java)
+## Step 1: Create New Model Classes
 
-**Purpose**: Singleton managing all sessions.
+Copy these files to `src/main/java/com/dqlsathi/model/`:
 
+1. **SessionContext.java** - Per-session state container
+2. **LoginResult.java** - Login dialog result record
+
+---
+
+## Step 2: Create New Service Classes
+
+Copy this file to `src/main/java/com/dqlsathi/service/`:
+
+1. **SessionManager.java** - Session coordination singleton
+
+---
+
+## Step 3: Create New UI Classes
+
+Copy these files to `src/main/java/com/dqlsathi/ui/`:
+
+1. **LoginDialog.java** - Modal login dialog
+2. **SessionTabBar.java** - Session tab bar
+3. **SessionWorkspace.java** - Per-session workspace
+4. **MainToolbar.java** - Icon toolbar
+5. **MainMenuBar.java** - Enhanced menu bar
+6. **EmptyWorkspaceView.java** - Placeholder when no sessions open
+
+---
+
+## Step 4: Add CSS Stylesheet
+
+Copy this file to `src/main/resources/css/`:
+
+1. **session-ui.css** - Styles for new components
+
+---
+
+## Step 5: Modify DfcService.java
+
+**File:** `src/main/java/com/dqlsathi/service/DfcService.java`
+
+**Current (Singleton):**
 ```java
-public class SessionManager {
-    private static SessionManager instance;
-    private final List<SessionContext> sessions;
-    private SessionContext activeSession;
-    private final List<SessionChangeListener> listeners;
-    
-    public SessionContext createSession();           // Creates new empty session
-    public void closeSession(SessionContext ctx);    // Closes and cleans up
-    public void setActiveSession(SessionContext ctx);
-    public SessionContext getActiveSession();
-    public List<SessionContext> getAllSessions();
-    
-    // Event notification
-    public void addSessionChangeListener(SessionChangeListener l);
-    public interface SessionChangeListener {
-        void onSessionAdded(SessionContext ctx);
-        void onSessionRemoved(SessionContext ctx);
-        void onActiveSessionChanged(SessionContext ctx);
+private static DfcService instance;
+
+public static synchronized DfcService getInstance() {
+    if (instance == null) {
+        instance = new DfcService();
     }
+    return instance;
 }
 ```
 
----
-
-#### [NEW] [LoginDialog.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/LoginDialog.java)
-
-**Purpose**: Modal dialog for entering credentials.
-
+**Change to (Per-Instance):**
 ```java
-public class LoginDialog extends Dialog<LoginResult> {
-    private ComboBox<String> docbaseField;
-    private TextField usernameField;
-    private PasswordField passwordField;
-    private Button historyButton;
-    private CheckBox saveToHistoryCheckbox;
-    
-    public LoginDialog();
-    
-    // Returns LoginResult with credentials or null if cancelled
-    public static Optional<LoginResult> showAndWait();
-    
-    // History dropdown (reuses existing ProfileManager)
-    private void showHistoryDropdown();
-    private void loadProfileToFields(ConnectionProfile profile);
+// REMOVE: private static DfcService instance;
+
+// REMOVE: public static synchronized DfcService getInstance() { ... }
+
+// ADD: Public constructor (if currently private)
+public DfcService() {
+    // Existing initialization code
 }
-
-public record LoginResult(String docbase, String username, String password, boolean saveToHistory) {}
 ```
 
-**UI Layout** (like DQMan/DQLBuddy):
-```
-┌─────────────────────────────────────────┐
-│  🔌 Documentum Login                  ✕ │
-├─────────────────────────────────────────┤
-│  Repository:  [▼ dropdown________] [⟳] │
-│  Username:    [___________________]     │
-│  Password:    [●●●●●●●●●●●________]     │
-│                                         │
-│  ☑ Save in login history               │
-│                                         │
-│  [History ▼]      [ Login ] [ Cancel ] │
-└─────────────────────────────────────────┘
-```
+**Also update any code that calls `DfcService.getInstance()` to receive the service from `SessionContext` instead.**
 
 ---
 
-#### [NEW] [SessionTabBar.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/SessionTabBar.java)
+## Step 6: Modify MetadataCache.java
 
-**Purpose**: Horizontal tab bar showing all sessions.
+**File:** `src/main/java/com/dqlsathi/service/MetadataCache.java`
 
+**Current (Singleton):**
 ```java
-public class SessionTabBar extends HBox {
-    private final SessionManager sessionManager;
-    private final Map<SessionContext, SessionTab> tabMap;
-    
-    public SessionTabBar();
-    
-    private void addSessionTab(SessionContext ctx);
-    private void removeSessionTab(SessionContext ctx);
-    private void highlightActiveTab(SessionContext ctx);
-    
-    // Tab component
-    private class SessionTab extends HBox {
-        private Label icon;           // 🔌 or ⚠
-        private Label connectionName; // user@repo
-        private Button closeButton;   // ✕
+private static MetadataCache instance;
+
+public static synchronized MetadataCache getInstance() {
+    if (instance == null) {
+        instance = new MetadataCache();
     }
+    return instance;
 }
 ```
 
-**Visual**:
-```
-[🔌 admin@EDMS ✕] [🔌 user@DEV ✕] [⚠ <not connected> ✕] [➕]
+**Change to (Per-Instance):**
+```java
+// REMOVE: private static DfcService instance;
+
+// REMOVE: public static synchronized MetadataCache getInstance() { ... }
+
+// ADD: Public constructor (if currently private)
+public MetadataCache() {
+    // Existing initialization code
+}
+
+// ADD: Method to clear cache on disconnect
+public void clear() {
+    // Clear all cached data
+}
 ```
 
 ---
 
-#### [NEW] [SessionWorkspace.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/SessionWorkspace.java)
+## Step 7: Replace DqlSathiApplication.java
 
-**Purpose**: Container for one session's UI (editor + results).
+**IMPORTANT:** Backup existing file first!
+
+**File:** `src/main/java/com/dqlsathi/DqlSathiApplication.java`
+
+Replace with the new version from the artifact directory. The new version:
+- Removes inline ConnectionPanel
+- Adds MainMenuBar, MainToolbar, SessionTabBar
+- Uses StackPane to switch between session workspaces
+- Shows LoginDialog on first launch
+
+---
+
+## Step 8: Find and Replace Singleton Usage
+
+Search your entire project for:
+- `DfcService.getInstance()` - Replace with context.getDfcService()
+- `MetadataCache.getInstance()` - Replace with context.getMetadataCache()
+
+Common affected files:
+- QueryExecutor.java
+- ObjectDumper.java
+- MetadataService.java
+- Any file that accesses DFC
+
+---
+
+## Step 9: Update QueryEditorPanel.java
+
+Add this method if not present:
 
 ```java
-public class SessionWorkspace extends VBox {
-    private final SessionContext context;
-    private final QueryEditorPanel queryEditor;
-    private final DumpTabPane resultPane;
-    
-    public SessionWorkspace(SessionContext context);
-    
-    public QueryEditorPanel getQueryEditor();
-    public DumpTabPane getResultPane();
-    
-    // Binds UI to session context
-    private void wireComponents();
+// Callback for execute action
+private Consumer<String> onExecute;
+
+public void setOnExecute(Consumer<String> callback) {
+    this.onExecute = callback;
+}
+
+// In your execute method, call:
+if (onExecute != null) {
+    onExecute.accept(getQuery());
 }
 ```
 
 ---
 
-#### [NEW] [MainToolbar.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/MainToolbar.java)
+## Step 10: Update ResultsPanel.java
 
-**Purpose**: Icon toolbar with common actions.
+Ensure this callback exists:
 
 ```java
-public class MainToolbar extends ToolBar {
-    private final SessionManager sessionManager;
-    
-    // Button groups
-    private Button newSessionBtn;    // 🔌 New Session
-    private Button disconnectBtn;    // ❌ Disconnect
-    private Separator sep1;
-    private Button runBtn;           // ▶ Run
-    private Button stopBtn;          // ⏹ Stop
-    private Separator sep2;
-    private Button historyBtn;       // 📜 History
-    private ToggleButton navigatorBtn; // 🗂 Navigator
-    
-    public MainToolbar(SessionManager sessionManager);
-    
-    // Actions
-    private void handleNewSession();
-    private void handleDisconnect();
-    private void handleRun();
-    private void handleStop();
-    private void handleToggleNavigator();
+// Callback for dump request
+private Consumer<String> onDumpRequest;
+
+public void setOnDumpRequest(Consumer<String> callback) {
+    this.onDumpRequest = callback;
+}
+
+// Getter for selected cell value
+public String getSelectedCellValue() {
+    // Return currently selected cell value
 }
 ```
 
 ---
 
-#### [MODIFY] [MainMenuBar.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/MainMenuBar.java)
+## Step 11: Update DumpTabPane.java
 
-**Purpose**: Enhanced menu bar (refactored from `createMenuBar()` in DqlSathiApplication).
+Add this method if not present:
 
 ```java
-public class MainMenuBar extends MenuBar {
-    // Session Menu
-    private Menu sessionMenu;     // New, History submenu, Disconnect, Close Tab, Exit
-    
-    // Edit Menu  
-    private Menu editMenu;        // Undo, Redo, Cut, Copy, Paste, Find
-    
-    // Query Menu
-    private Menu queryMenu;       // Execute, Cancel
-    
-    // View Menu
-    private Menu viewMenu;        // Toggle Navigator, Zoom
-    
-    // Help Menu
-    private Menu helpMenu;        // Logs, About
+public void closeAllDumpTabs() {
+    // Close all dump tabs (keep results tab)
+    List<Tab> toRemove = new ArrayList<>();
+    for (Tab tab : getTabs()) {
+        if (tab != resultsTab) {
+            toRemove.add(tab);
+        }
+    }
+    getTabs().removeAll(toRemove);
+    dumpTabs.clear();
 }
 ```
 
 ---
 
-### Refactored Components
+## Compile and Test Checklist
 
----
+After copying files and making modifications:
 
-#### [MODIFY] [DfcService.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/service/DfcService.java)
-
-**Change**: From singleton to per-session instances.
-
-```diff
-- private static DfcService instance;
-- public static DfcService getInstance() { ... }
-+ // No longer singleton - instantiated per SessionContext
-+ public DfcService() { ... }
-```
-
-Each `SessionContext` creates its own `DfcService` instance.
-
----
-
-#### [MODIFY] [MetadataCache.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/service/MetadataCache.java)
-
-**Change**: From singleton to per-session instances.
-
-```diff
-- private static MetadataCache instance;
-+ // Per-session instance, stored in SessionContext
-```
-
----
-
-#### [MODIFY] [DqlSathiApplication.java](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/DqlSathiApplication.java)
-
-**Major refactor**:
-
-```diff
-- private ConnectionPanel connectionPanel;
-+ private MainMenuBar menuBar;
-+ private MainToolbar toolbar;
-+ private SessionTabBar sessionTabBar;
-+ private StackPane workspaceContainer;  // Swaps SessionWorkspace per active session
-
-  @Override
-  public void start(Stage primaryStage) {
-      // Layout: MenuBar → Toolbar → SessionTabBar → Workspace
-+     showLoginDialogOnStartup();  // Modal on first launch
-  }
-```
-
----
-
-### Application Flow
-
-#### First Launch
-
-```mermaid
-sequenceDiagram
-    participant App as DqlSathiApplication
-    participant Dialog as LoginDialog
-    participant SM as SessionManager
-    participant Ctx as SessionContext
-    participant UI as SessionWorkspace
-
-    App->>App: start(Stage)
-    App->>App: Build empty shell (menu, toolbar, tabbar)
-    App->>Dialog: showAndWait()
-    Dialog-->>App: LoginResult
-    App->>SM: createSession()
-    SM->>Ctx: new SessionContext()
-    Ctx->>Ctx: connect(docbase, user, pass)
-    SM->>UI: new SessionWorkspace(ctx)
-    App->>App: Display workspace
-```
-
-#### Subsequent Session
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Toolbar as MainToolbar
-    participant Dialog as LoginDialog
-    participant SM as SessionManager
-    participant TabBar as SessionTabBar
-
-    User->>Toolbar: Click "New Session"
-    Toolbar->>Dialog: showAndWait()
-    Dialog-->>Toolbar: LoginResult
-    Toolbar->>SM: createSession()
-    SM->>TabBar: addSessionTab(ctx)
-    SM->>SM: setActiveSession(ctx)
-```
-
----
-
-## CSS Updates
-
-New file: `src/main/resources/css/session-tabs.css`
-
-```css
-/* Session Tab Bar */
-.session-tab-bar {
-    -fx-background-color: #f5f5f5;
-    -fx-padding: 4 8 4 8;
-    -fx-spacing: 2;
-}
-
-.session-tab {
-    -fx-background-color: #e0e0e0;
-    -fx-background-radius: 4 4 0 0;
-    -fx-padding: 6 12 6 12;
-    -fx-cursor: hand;
-}
-
-.session-tab.active {
-    -fx-background-color: white;
-    -fx-border-color: #1976d2 transparent transparent transparent;
-    -fx-border-width: 3 0 0 0;
-}
-
-.session-tab .close-button {
-    -fx-background-color: transparent;
-    -fx-padding: 0 0 0 8;
-    -fx-opacity: 0.5;
-}
-
-.session-tab .close-button:hover {
-    -fx-opacity: 1.0;
-    -fx-text-fill: #d32f2f;
-}
-
-/* Main Toolbar */
-.main-toolbar {
-    -fx-background-color: #fafafa;
-    -fx-padding: 4 8 4 8;
-}
-
-.main-toolbar .button {
-    -fx-background-color: transparent;
-    -fx-padding: 6 10 6 10;
-}
-
-.main-toolbar .button:hover {
-    -fx-background-color: #e3f2fd;
-    -fx-background-radius: 4;
-}
-```
-
----
-
-## Verification Plan
-
-### Manual Testing (Recommended)
-
-Since this is a UI architecture change, manual testing is most appropriate:
-
-#### Test 1: First Launch Shows Login Dialog
-1. Run the application: `mvn javafx:run`
-2. **Expected**: Modal login dialog appears immediately
-3. **Verify**: Main window visible but disabled behind the dialog
-
-#### Test 2: Successful Login Creates Session Tab
-1. Enter valid credentials in login dialog
-2. Click "Login"
-3. **Expected**: 
-   - Dialog closes
-   - Session tab appears: `[🔌 username@repository ✕]`
-   - Workspace shows query editor + results panel
-
-#### Test 3: Multiple Sessions Work Independently
-1. Click "New Session" button in toolbar
-2. Login to a different repository (or same with different user)
-3. **Expected**: Second tab appears
-4. Execute query in Tab 1
-5. Switch to Tab 2
-6. **Expected**: Tab 2 shows its own empty editor/results (not Tab 1's data)
-
-#### Test 4: Close Session Tab
-1. With 2+ sessions open
-2. Click ✕ on one session tab
-3. **Expected**: 
-   - Tab removed
-   - If it was active, another tab becomes active
-   - DFC session disconnected (check logs)
-
-#### Test 5: Login History Works
-1. Open login dialog
-2. Click "History" dropdown
-3. **Expected**: Previous logins appear (from existing profile storage)
-
-### Automated Verification
-
-Run existing tests to ensure no regressions:
-
+### Build
 ```bash
 cd "d:\dqlSathi Devlopment"
-mvn test
+mvn clean compile
 ```
 
+### Test Cases
+
+1. **First Launch Shows Login Dialog**
+   - [ ] Run application
+   - [ ] Modal dialog appears
+   - [ ] Main window visible but grayed
+
+2. **Login Creates Session Tab**
+   - [ ] Enter valid credentials
+   - [ ] Tab appears showing user@repository
+   - [ ] Workspace shows editor + results
+
+3. **New Session Works**
+   - [ ] Click "New Session" toolbar button (or Ctrl+N)
+   - [ ] New empty tab appears
+   - [ ] Login dialog appears
+   - [ ] After login, tab updates with connection name
+
+4. **Multiple Sessions**
+   - [ ] Create 2+ sessions
+   - [ ] Switch between tabs
+   - [ ] Each tab has independent state
+
+5. **Close Tab Works**
+   - [ ] Click X on session tab
+   - [ ] Tab removed
+   - [ ] Another tab activated
+
+6. **Query Execution**
+   - [ ] Enter DQL in connected session
+   - [ ] Press F5
+   - [ ] Results displayed
+
+7. **Keyboard Shortcuts**
+   - [ ] Ctrl+N = New Session
+   - [ ] Ctrl+W = Close Tab
+   - [ ] F5 = Execute Query
+   - [ ] Alt+D = Dump Object
+
 ---
 
-## Risk Mitigation
+## Troubleshooting
 
-| Risk | Mitigation |
-|------|------------|
-| DfcService singleton used elsewhere | Search for `DfcService.getInstance()` and update all call sites |
-| MetadataCache singleton used elsewhere | Same - update all references |
-| Existing tests depend on singletons | Update test setup to create instances |
-| ConnectionPanel logic lost | Port all logic to LoginDialog |
+### Compilation Errors
 
----
+| Error | Solution |
+|-------|----------|
+| `DfcService.getInstance() undefined` | Update to use `context.getDfcService()` |
+| `MetadataCache.getInstance() undefined` | Update to use `context.getMetadataCache()` |
+| `Cannot find symbol: SessionContext` | Add import: `import com.dqlsathi.model.SessionContext;` |
+| `Cannot find symbol: SessionManager` | Add import: `import com.dqlsathi.service.SessionManager;` |
+| `CSS not loading` | Verify path: `/css/session-ui.css` exists in resources |
 
-## Files Changed Summary
+### Runtime Errors
 
-| Action | File |
-|--------|------|
-| NEW | `src/main/java/com/dqlsathi/model/SessionContext.java` |
-| NEW | `src/main/java/com/dqlsathi/service/SessionManager.java` |
-| NEW | `src/main/java/com/dqlsathi/ui/LoginDialog.java` |
-| NEW | `src/main/java/com/dqlsathi/ui/SessionTabBar.java` |
-| NEW | `src/main/java/com/dqlsathi/ui/SessionWorkspace.java` |
-| NEW | `src/main/java/com/dqlsathi/ui/MainToolbar.java` |
-| NEW | `src/main/java/com/dqlsathi/ui/MainMenuBar.java` |
-| NEW | `src/main/resources/css/session-tabs.css` |
-| MODIFY | `src/main/java/com/dqlsathi/DqlSathiApplication.java` |
-| MODIFY | `src/main/java/com/dqlsathi/service/DfcService.java` |
-| MODIFY | `src/main/java/com/dqlsathi/service/MetadataCache.java` |
-| DELETE | None (ConnectionPanel kept for reference, removed from layout) |
+| Error | Solution |
+|-------|----------|
+| `NullPointerException in SessionWorkspace` | Check QueryEditorPanel has setOnExecute method |
+| `No results displayed` | Check DfcService connection is from SessionContext |
+| `Login dialog not showing` | Check Platform.runLater is calling showFirstLaunchLogin |
 
 ---
 
-## Questions Before Implementation
+## Questions
 
-> [!IMPORTANT]
-> Please confirm before I proceed:
+Please share:
+1. Compilation errors you encounter
+2. Screenshots of any runtime issues
+3. Any behavior that differs from expected
 
-1. **Should the old `ConnectionPanel` be deleted entirely**, or kept temporarily for reference during migration?
-
-2. **For the "New Session" workflow**: Should clicking the button open the login dialog immediately, or first create an empty "<not connected>" tab (like DQMan image 4)?
-
-3. **Keyboard shortcut preferences**:
-   - `Ctrl+N` for New Session?
-   - `Ctrl+W` for Close Tab?
-   - `F5` for Execute Query?
-
-4. **What should happen if user closes the last session tab?** Options:
-   - A) Exit the application
-   - B) Show login dialog again
-   - C) Keep empty workspace with "Connect to begin" message
+I'll help debug and refine the implementation!
