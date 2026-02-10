@@ -170,7 +170,7 @@ graph TD
 #### Refactoring Required
 
 1. **Decouple `DfcService`** from singleton → per-session instances
-2. **Move connection logic** from `ConnectionPanel` → modal `LoginDialog`
+2. **Move connection logic** from [ConnectionPanel](file:///d:/dqlSathi%20Devlopment/src/main/java/com/dqlsathi/ui/ConnectionPanel.java#16-582) → modal `LoginDialog`
 3. **Isolate state** per session (query history, results, metadata cache)
 
 ---
@@ -402,6 +402,4 @@ If this analysis is approved, I will create a detailed `implementation_plan.md` 
 - New class designs with method signatures
 - CSS updates for new components
 - Testing strategy
-
-
 
